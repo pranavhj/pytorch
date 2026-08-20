@@ -14,7 +14,9 @@
 #include <ATen/ops/result_type_native.h>
 #endif
 
+#include <type_traits>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace at::native {
@@ -206,6 +208,18 @@ inline bool check_fast_path_restrictions(
              tensorLists[0],
              scalarList,
              does_op_promote_integer_inputs_to_float);
+}
+
+template <typename T>
+concept TensorVector = std::is_convertible_v<T, std::vector<Tensor>>;
+
+// A braced init-list would copy each inner list: its backing array is const.
+template <TensorVector... Ts>
+std::vector<std::vector<Tensor>> make_tensor_lists(Ts&&... lists) {
+  std::vector<std::vector<Tensor>> tensor_lists;
+  tensor_lists.reserve(sizeof...(Ts));
+  (tensor_lists.emplace_back(std::forward<Ts>(lists)), ...);
+  return tensor_lists;
 }
 
 inline std::vector<c10::Scalar> convert_tensor_to_scalar_list(
